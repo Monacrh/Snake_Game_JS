@@ -1,102 +1,106 @@
-// script.js
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const grid = 20;
-let count = 0;
+const gridSize = 20;
+const tileSize = canvas.width / gridSize;
+let snake = [{ x: 10, y: 10 }];
+let direction = { x: 0, y: 0 };
+let food = { x: 5, y: 5 };
+let score = 0;
+let speed = 100;
+let level = 1;
 
-const snake = {
-    x: 160,
-    y: 160,
-    dx: grid,
-    dy: 0,
-    cells: [],
-    maxCells: 4
-};
+const colors = ["red", "green", "blue", "yellow", "purple", "orange", "pink"];
 
-const food = {
-    x: getRandomInt(0, 20) * grid,
-    y: getRandomInt(0, 20) * grid
-};
-
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min)) + min;
+function gameLoop() {
+    update();
+    draw();
 }
 
-function loop() {
-    requestAnimationFrame(loop);
-
-    if (++count < 4) {
-        return;
+function update() {
+    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        updateScore();
+        placeFood();
+    } else {
+        snake.pop();
     }
 
-    count = 0;
+    if (head.x < 0 || head.y < 0 || head.x >= gridSize || head.y >= gridSize || snakeCollision(head)) {
+        resetGame();
+    }
+
+    if (score > level * 50) {
+        level++;
+        speed -= 10;
+        updateLevel();
+        clearInterval(gameInterval);
+        gameInterval = setInterval(gameLoop, speed);
+    }
+}
+
+function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    snake.x += snake.dx;
-    snake.y += snake.dy;
-
-    if (snake.x < 0) {
-        snake.x = canvas.width - grid;
-    } else if (snake.x >= canvas.width) {
-        snake.x = 0;
-    }
-
-    if (snake.y < 0) {
-        snake.y = canvas.height - grid;
-    } else if (snake.y >= canvas.height) {
-        snake.y = 0;
-    }
-
-    snake.cells.unshift({x: snake.x, y: snake.y});
-
-    if (snake.cells.length > snake.maxCells) {
-        snake.cells.pop();
-    }
+    snake.forEach((segment, index) => {
+        ctx.fillStyle = colors[index % colors.length];
+        ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+    });
 
     ctx.fillStyle = 'red';
-    ctx.fillRect(food.x, food.y, grid - 1, grid - 1);
-
-    ctx.fillStyle = 'green';
-    snake.cells.forEach((cell, index) => {
-        ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1);
-
-        if (cell.x === food.x && cell.y === food.y) {
-            snake.maxCells++;
-            food.x = getRandomInt(0, 20) * grid;
-            food.y = getRandomInt(0, 20) * grid;
-        }
-
-        for (let i = index + 1; i < snake.cells.length; i++) {
-            if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
-                snake.x = 160;
-                snake.y = 160;
-                snake.cells = [];
-                snake.maxCells = 4;
-                snake.dx = grid;
-                snake.dy = 0;
-
-                food.x = getRandomInt(0, 20) * grid;
-                food.y = getRandomInt(0, 20) * grid;
-            }
-        }
-    });
+    ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
 }
 
-document.addEventListener('keydown', (e) => {
-    if (e.which === 37 && snake.dx === 0) {
-        snake.dx = -grid;
-        snake.dy = 0;
-    } else if (e.which === 38 && snake.dy === 0) {
-        snake.dy = -grid;
-        snake.dx = 0;
-    } else if (e.which === 39 && snake.dx === 0) {
-        snake.dx = grid;
-        snake.dy = 0;
-    } else if (e.which === 40 && snake.dy === 0) {
-        snake.dy = grid;
-        snake.dx = 0;
+function placeFood() {
+    food.x = Math.floor(Math.random() * gridSize);
+    food.y = Math.floor(Math.random() * gridSize);
+}
+
+function snakeCollision(head) {
+    for (let i = 1; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function resetGame() {
+    snake = [{ x: 10, y: 10 }];
+    direction = { x: 0, y: 0 };
+    score = 0;
+    level = 1;
+    speed = 100;
+    updateScore();
+    updateLevel();
+    placeFood();
+}
+
+function updateScore() {
+    document.getElementById('score').innerText = `Score: ${score}`;
+}
+
+function updateLevel() {
+    document.getElementById('level').innerText = `Level: ${level}`;
+}
+
+document.addEventListener('keydown', event => {
+    switch (event.key) {
+        case 'ArrowUp':
+            if (direction.y === 0) direction = { x: 0, y: -1 };
+            break;
+        case 'ArrowDown':
+            if (direction.y === 0) direction = { x: 0, y: 1 };
+            break;
+        case 'ArrowLeft':
+            if (direction.x === 0) direction = { x: -1, y: 0 };
+            break;
+        case 'ArrowRight':
+            if (direction.x === 0) direction = { x: 1, y: 0 };
+            break;
     }
 });
 
-requestAnimationFrame(loop);
+let gameInterval = setInterval(gameLoop, speed);
